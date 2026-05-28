@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ElevaPass — Gestión de Permisos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F5F4F0;--surface:#FFFFFF;--surface2:#EEECEA;--border:#D8D6D0;
+    --text:#1A1917;--text2:#6B6860;--text3:#9B9890;
+    --accent:#1D4ED8;--accent-light:#EFF3FF;
+    --success:#15803D;--success-light:#F0FDF4;
+    --danger:#DC2626;--danger-light:#FEF2F2;
+    --warning:#D97706;--warning-light:#FFFBEB;
+    --pending:#7C3AED;--pending-light:#F5F3FF;
+    --radius:12px;--radius-sm:8px;
+    --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md:0 4px 16px rgba(0,0,0,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+  #app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+  .header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+  .header-logo{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:var(--accent);background:var(--accent-light);padding:4px 10px;border-radius:6px}
+  .header-title{font-size:15px;font-weight:500;flex:1}
+  .header-role{font-size:12px;color:var(--text3);font-family:'DM Mono',monospace}
+  .btn-back{background:none;border:none;cursor:pointer;color:var(--text2);padding:4px;font-size:15px}
+  .screen{display:none;flex:1;flex-direction:column;padding:20px;gap:16px;animation:fadeIn 0.2s ease}
+  .screen.active{display:flex}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  #screen-login{justify-content:center;padding:40px 24px}
+  .login-brand{text-align:center;margin-bottom:40px}
+  .login-brand h1{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;letter-spacing:-0.02em}
+  .login-brand p{color:var(--text2);margin-top:6px;font-size:14px}
+  .role-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .role-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer;text-align:center;transition:all 0.15s}
+  .role-card:hover{border-color:var(--accent);background:var(--accent-light)}
+  .role-card .role-icon{font-size:28px;margin-bottom:10px}
+  .role-card .role-name{font-size:13px;font-weight:500}
+  .role-card .role-desc{font-size:11px;color:var(--text3);margin-top:3px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+  .card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:14px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:12px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em}
+  .field input,.field select,.field textarea{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;font-size:15px;font-family:'DM Sans',sans-serif;color:var(--text);transition:border-color 0.15s;outline:none;width:100%}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);background:var(--surface)}
+  .field input[readonly]{background:var(--surface2);color:var(--text2);cursor:default}
+  .field textarea{resize:none;min-height:80px}
+  .field-hint{font-size:11px;color:var(--text3)}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;border-radius:var(--radius-sm);font-size:15px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all 0.15s;width:100%}
+  .btn-primary{background:var(--accent);color:white}.btn-primary:hover{background:#1e40af}.btn-primary:active{transform:scale(0.98)}
+  .btn-secondary{background:var(--surface);color:var(--text);border:1.5px solid var(--border)}.btn-secondary:hover{background:var(--surface2)}
+  .btn-success{background:var(--success);color:white}
+  .btn-danger{background:var(--danger);color:white}
+  .btn-warning{background:var(--warning);color:white}
+  .btn-sm{padding:8px 14px;font-size:13px;width:auto}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500}
+  .badge-pending{background:var(--pending-light);color:var(--pending)}
+  .badge-approved{background:var(--success-light);color:var(--success)}
+  .badge-denied{background:var(--danger-light);color:var(--danger)}
+  .badge-progress{background:var(--warning-light);color:var(--warning)}
+  .badge-done{background:var(--surface2);color:var(--text2)}
+  .badge-corrections{background:var(--warning-light);color:var(--warning)}
+  .permit-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:all 0.15s}
+  .permit-item:hover{border-color:var(--accent);box-shadow:var(--shadow-md)}
+  .permit-header{display:flex;justify-content:space-between;align-items:flex-start}
+  .permit-meta{font-size:12px;color:var(--text3);display:flex;gap:10px;flex-wrap:wrap}
+  .qr-container{display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border)}
+  .auth-code{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--accent);letter-spacing:0.1em;background:var(--accent-light);padding:8px 20px;border-radius:8px;text-align:center;word-break:break-all}
+  .tabs{display:flex;background:var(--surface2);border-radius:var(--radius-sm);padding:3px;gap:2px}
+  .tab{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text2);border:none;background:none;transition:all 0.15s}
+  .tab.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:white;padding:12px 20px;border-radius:var(--radius-sm);font-size:14px;transition:transform 0.3s;z-index:9999;max-width:90vw;text-align:center}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+  .section-header{display:flex;justify-content:space-between;align-items:center}
+  .section-title{font-size:18px;font-weight:600}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px}
+  .stat-value{font-size:24px;font-weight:600;color:var(--accent);font-family:'DM Mono',monospace}
+  .stat-label{font-size:12px;color:var(--text2);margin-top:2px}
+  .divider{height:1px;background:var(--border)}
+  .empty{text-align:center;padding:40px 20px;color:var(--text3)}
+  .empty-icon{font-size:40px;margin-bottom:12px}
+  .empty p{font-size:14px}
+  .bottom-nav{background:var(--surface);border-top:1px solid var(--border);padding:10px 20px;padding-bottom:max(10px,env(safe-area-inset-bottom));display:flex;justify-content:space-around;position:sticky;bottom:0;z-index:100}
+  .nav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 14px;border-radius:8px;transition:all 0.15s;color:var(--text3)}
+  .nav-btn.active{color:var(--accent)}
+  .nav-icon{font-size:20px}.nav-label{font-size:10px;font-weight:500}
+  .data-table{width:100%;border-collapse:collapse;font-size:13px}
+  .data-table th{background:var(--surface2);padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em}
+  .data-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+  .data-table tr:last-child td{border-bottom:none}
+  .manual-wrap{display:flex;gap:8px}
+  .manual-input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;font-size:14px;font-family:'DM Mono',monospace;color:var(--text);outline:none;transition:border-color 0.15s}
+  .manual-input:focus{border-color:var(--accent)}
+  .scan-cta{background:var(--accent);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;border:none;width:100%;transition:all 0.15s}
+  .scan-cta:hover{background:#1e40af}.scan-cta:active{transform:scale(0.98)}
+  .scan-icon{font-size:40px}.scan-label{color:white;font-size:16px;font-weight:600;font-family:'DM Sans',sans-serif}
+  .scan-sublabel{color:rgba(255,255,255,0.75);font-size:13px;font-family:'DM Sans',sans-serif}
+  /* Loading overlay */
+  #loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,0.8);z-index:800;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+  #loading-overlay.show{display:flex}
+  .spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* QR Scanner */
+  #qr-scanner-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:500;flex-direction:column;align-items:center;justify-content:center}
+  #qr-scanner-modal.open{display:flex}
+  #qr-reader{width:300px;max-width:90vw;border-radius:16px;overflow:hidden;background:#000;position:relative}
+  #qr-reader video{width:100%;display:block}
+  .qr-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .qr-frame{width:65%;aspect-ratio:1;border:3px solid #fff;border-radius:12px;box-shadow:0 0 0 1000px rgba(0,0,0,0.45);position:relative;overflow:hidden}
+  .qr-scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#3B82F6,transparent);animation:qrscan 1.8s ease-in-out infinite}
+  @keyframes qrscan{0%,100%{top:8%}50%{top:88%}}
+  .scanner-instructions{color:white;font-size:14px;text-align:center;margin-top:20px;padding:0 20px;line-height:1.5}
+  .scanner-close{margin-top:16px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:white;padding:12px 32px;border-radius:8px;font-size:15px;cursor:pointer;font-family:'DM Sans',sans-serif}
+  .scanner-close:hover{background:rgba(255,255,255,0.25)}
+</style>
+</head>
+<body>
+
+<div id="qr-scanner-modal">
+  <div id="qr-reader">
+    <div class="qr-overlay"><div class="qr-frame"><div class="qr-scan-line"></div></div></div>
+  </div>
+  <p class="scanner-instructions">Apunta la cámara al código QR del permiso</p>
+  <button class="scanner-close" onclick="closeScanner()">✕ Cancelar</button>
+</div>
+
+<div id="loading-overlay"><div class="spinner"></div><span style="font-size:14px;color:var(--text2)">Cargando...</span></div>
+
+<div id="app">
+  <div class="header">
+    <div class="header-logo">EP</div>
+    <div class="header-title" id="header-title">ElevaPass</div>
+    <div class="header-role" id="header-role"></div>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="screen active" id="screen-login" style="overflow-y:auto">
+    <div class="login-brand"><h1>ElevaPass</h1><p>Gestión de permisos de salida</p></div>
+    <p style="font-size:13px;color:var(--text2);text-align:center;margin-bottom:4px">Selecciona tu rol para continuar</p>
+    <div class="role-grid">
+      <div class="role-card" onclick="login('employee',event)"><div class="role-icon">👤</div><div class="role-name">Empleado</div><div class="role-desc">Solicitar permiso</div></div>
+      <div class="role-card" onclick="login('leader',event)"><div class="role-icon">👔</div><div class="role-name">Líder</div><div class="role-desc">Aprobar permisos</div></div>
+      <div class="role-card" onclick="login('guard',event)"><div class="role-icon">🔐</div><div class="role-name">Guardia</div><div class="role-desc">Registrar salidas</div></div>
+      <div class="role-card" onclick="login('hr',event)"><div class="role-icon">📊</div><div class="role-name">RRHH</div><div class="role-desc">Administración</div></div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="field"><label>Código de empleado / PIN</label><input type="text" id="login-code" placeholder="EMP001" oninput="this.value=this.value.toUpperCase()"></div>
+      <div style="margin-top:12px"><button class="btn btn-primary" onclick="doLogin()">Ingresar →</button></div>
+    </div>
+    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">Demo: EMP001 · LID001 · GRD001 · HR001</p>
+  </div>
+
+  <!-- EMPLEADO HOME -->
+  <div class="screen" id="screen-emp-home">
+    <div class="section-header"><div class="section-title">Mis permisos</div><button class="btn btn-primary btn-sm" onclick="initNewForm();showScreen('screen-emp-new')">+ Nuevo</button></div>
+    <div class="tabs">
+      <button class="tab active" onclick="filterEmpPermits('all',this)">Todos</button>
+      <button class="tab" onclick="filterEmpPermits('pending',this)">Pendientes</button>
+      <button class="tab" onclick="filterEmpPermits('approved',this)">Aprobados</button>
+    </div>
+    <div id="emp-permits-list"></div>
+    <div class="empty" id="emp-permits-empty" style="display:none"><div class="empty-icon">📋</div><p>Sin permisos registrados</p></div>
+  </div>
+
+  <!-- EMPLEADO NUEVO -->
+  <div class="screen" id="screen-emp-new" style="overflow-y:auto">
+    <div class="section-header"><button class="btn-back" onclick="showScreen('screen-emp-home')">← Volver</button><div class="section-title">Nueva solicitud</div></div>
+    <div class="card">
+      <div class="card-title">Datos del empleado</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="field"><label>Código</label><input type="text" id="f-emp-code" readonly></div>
+        <div class="field"><label>Nombre completo</label><input type="text" id="f-emp-name" readonly></div>
+        <div class="field"><label>Gerencia</label><input type="text" id="f-emp-dept" readonly></div>
+        <div class="field"><label>Líder inmediato</label><input type="text" id="f-emp-leader" readonly></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Detalles del permiso</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="field"><label>Fecha del permiso</label><input type="date" id="f-date"></div>
+        <div class="field"><label>Tiempo solicitado (minutos)</label><input type="number" id="f-minutes" min="1" max="120" placeholder="ej. 60"><span class="field-hint">Máximo 120 minutos</span></div>
+        <div class="field">
+          <label>Motivo del permiso</label>
+          <select id="f-reason">
+            <option value="">Seleccionar motivo...</option>
+            <option>Cita médica</option><option>Trámite bancario</option><option>Diligencia personal</option>
+            <option>Emergencia familiar</option><option>Trámite gubernamental</option><option>Otro</option>
+          </select>
+        </div>
+        <div class="field" id="f-reason-other-wrap" style="display:none"><label>Especificar motivo</label><textarea id="f-reason-other" placeholder="Describe el motivo..."></textarea></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="submitPermit()">Enviar solicitud →</button>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- EMPLEADO DETALLE -->
+  <div class="screen" id="screen-emp-detail" style="overflow-y:auto">
+    <div class="section-header"><button class="btn-back" onclick="showScreen('screen-emp-home')">← Volver</button><div class="section-title">Detalle del permiso</div></div>
+    <div id="emp-detail-content"></div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- LIDER HOME -->
+  <div class="screen" id="screen-leader-home">
+    <div class="section-header"><div class="section-title">Solicitudes</div><div style="font-size:13px;color:var(--text2)" id="leader-pending-count"></div></div>
+    <div class="tabs">
+      <button class="tab active" onclick="filterLeaderPermits('pending',this)">Pendientes</button>
+      <button class="tab" onclick="filterLeaderPermits('all',this)">Todas</button>
+      <button class="tab" onclick="loadLeaderTeam();showScreen('screen-leader-team')">Mi equipo</button>
+    </div>
+    <div id="leader-permits-list"></div>
+    <div class="empty" id="leader-permits-empty" style="display:none"><div class="empty-icon">✅</div><p>Sin solicitudes pendientes</p></div>
+  </div>
+
+  <!-- LIDER REVISAR -->
+  <div class="screen" id="screen-leader-review" style="overflow-y:auto">
+    <div class="section-header"><button class="btn-back" onclick="showScreen('screen-leader-home')">← Volver</button><div class="section-title">Revisar solicitud</div></div>
+    <div id="leader-review-content"></div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- LIDER EQUIPO -->
+  <div class="screen" id="screen-leader-team" style="overflow-y:auto">
+    <div class="section-header"><button class="btn-back" onclick="showScreen('screen-leader-home')">← Volver</button><div class="section-title">Permisos del equipo</div></div>
+    <div id="leader-team-content"></div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- GUARDIA HOME -->
+  <div class="screen" id="screen-guard-home" style="overflow-y:auto">
+    <div class="section-title">Registro de salidas</div>
+    <button class="scan-cta" onclick="openScanner()">
+      <span class="scan-icon">📷</span>
+      <span class="scan-label">Escanear código QR</span>
+      <span class="scan-sublabel">Toca para activar la cámara</span>
+    </button>
+    <div class="card">
+      <div class="card-title">O ingresa el código manualmente</div>
+      <div class="manual-wrap">
+        <input type="text" class="manual-input" id="guard-manual-code" placeholder="EP-2025-0001" oninput="this.value=this.value.toUpperCase()">
+        <button class="btn btn-primary btn-sm" onclick="processCode(document.getElementById('guard-manual-code').value)">Verificar</button>
+      </div>
+    </div>
+    <div id="guard-scan-result" style="display:none"></div>
+    <div class="divider"></div>
+    <div style="font-size:14px;font-weight:600">Registros de hoy</div>
+    <div id="guard-today-list"></div>
+    <div class="empty" id="guard-today-empty" style="display:none"><div class="empty-icon">🔍</div><p>Sin registros hoy</p></div>
+    <div style="height:20px"></div>
+  </div>
+
+  <!-- RRHH HOME -->
+  <div class="screen" id="screen-hr-home" style="overflow-y:auto">
+    <div class="section-title">Administración</div>
+    <div class="stats-grid" id="hr-stats"></div>
+    <div class="tabs">
+      <button class="tab active" onclick="hrTab('employees',this)">Empleados</button>
+      <button class="tab" onclick="hrTab('reports',this)">Reportes</button>
+    </div>
+    <div id="hr-content"></div>
+    <div style="height:20px"></div>
+  </div>
+
+  <div class="bottom-nav" id="bottom-nav" style="display:none"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// CONFIG — edita estas dos líneas
+// ══════════════════════════════════════════
+const SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+const DEMO_MODE  = true; // cambia a false en producción
+
+// ══════════════════════════════════════════
+// DEMO DATA
+// ══════════════════════════════════════════
+const DEMO_EMPLOYEES = [
+  {code:'EMP001',name:'Carlos Mendoza López', dept:'Operaciones',          leaderId:'LID001',leaderName:'Ana Martínez',  email:'carlos@empresa.com'},
+  {code:'EMP002',name:'María González Ruiz',  dept:'Producción',           leaderId:'LID001',leaderName:'Ana Martínez',  email:'maria@empresa.com'},
+  {code:'EMP003',name:'Juan Pablo Herrera',   dept:'Logística',            leaderId:'LID002',leaderName:'Roberto Silva', email:'juan@empresa.com'},
+  {code:'LID001',name:'Ana Martínez Solís',   dept:'Gerencia Operaciones', leaderId:'HR001', leaderName:'RRHH',          email:'ana@empresa.com',     isLeader:true},
+  {code:'LID002',name:'Roberto Silva Cruz',   dept:'Gerencia Logística',   leaderId:'HR001', leaderName:'RRHH',          email:'roberto@empresa.com', isLeader:true},
+  {code:'GRD001',name:'Pedro Castillo',       dept:'Seguridad',            leaderId:'HR001', leaderName:'RRHH',          email:'pedro@empresa.com',   isGuard:true},
+  {code:'HR001', name:'Laura Vásquez',        dept:'Recursos Humanos',     leaderId:'',      leaderName:'',              email:'rrhh@empresa.com',    isHR:true},
+];
+
+let DEMO_PERMITS = [
+  {id:'EP-2025-0001',empCode:'EMP001',empName:'Carlos Mendoza López',dept:'Operaciones',leaderCode:'LID001',leaderName:'Ana Martínez',date:'2025-05-28',minutes:60, reason:'Cita médica',         status:'approved',  authCode:'EP-2025-0001',createdAt:'2025-05-28T08:30:00',respondedAt:'2025-05-28T08:45:00',exitAt:null,returnAt:null,guardExit:null,guardReturn:null},
+  {id:'EP-2025-0002',empCode:'EMP002',empName:'María González Ruiz', dept:'Producción', leaderCode:'LID001',leaderName:'Ana Martínez',date:'2025-05-28',minutes:90, reason:'Trámite bancario',    status:'pending',   authCode:null,          createdAt:'2025-05-28T09:00:00',respondedAt:null,                 exitAt:null,returnAt:null,guardExit:null,guardReturn:null},
+  {id:'EP-2025-0003',empCode:'EMP001',empName:'Carlos Mendoza López',dept:'Operaciones',leaderCode:'LID001',leaderName:'Ana Martínez',date:'2025-05-27',minutes:45, reason:'Diligencia personal', status:'progress',  authCode:'EP-2025-0003',createdAt:'2025-05-27T10:00:00',respondedAt:'2025-05-27T10:10:00',exitAt:'2025-05-27T11:00:00',returnAt:null,guardExit:'GRD001',guardReturn:null},
+  {id:'EP-2025-0004',empCode:'EMP002',empName:'María González Ruiz', dept:'Producción', leaderCode:'LID001',leaderName:'Ana Martínez',date:'2025-05-26',minutes:30, reason:'Emergencia familiar', status:'done',      authCode:'EP-2025-0004',createdAt:'2025-05-26T14:00:00',respondedAt:'2025-05-26T14:05:00',exitAt:'2025-05-26T14:30:00',returnAt:'2025-05-26T15:00:00',guardExit:'GRD001',guardReturn:'GRD001',realMinutes:30},
+  {id:'EP-2025-0005',empCode:'EMP003',empName:'Juan Pablo Herrera',  dept:'Logística',  leaderCode:'LID002',leaderName:'Roberto Silva',date:'2025-05-28',minutes:120,reason:'Trámite gubernamental',status:'corrections',authCode:null,         corrections:'Indicar el tipo de trámite específico y adjuntar comprobante al regresar.',createdAt:'2025-05-28T07:30:00',respondedAt:'2025-05-28T08:00:00'},
+];
+
+let currentUser=null,currentRole=null,selectedPermit=null,permitCounter=6,html5QrCode=null;
+
+// ══════════════════════════════════════════
+// API — usa GET para evitar CORS
+// ══════════════════════════════════════════
+async function apiCall(action, params={}) {
+  if (DEMO_MODE) return demoAPI(action, params);
+  showLoading(true);
+  try {
+    const qs = new URLSearchParams({ action, ...params }).toString();
+    const res = await fetch(`${SCRIPT_URL}?${qs}`, { method:'GET' });
+    const text = await res.text();
+    return JSON.parse(text);
+  } catch(e) {
+    showToast('Error de conexión');
+    return null;
+  } finally {
+    showLoading(false);
+  }
+}
+
+function demoAPI(action, d) {
+  if (action==='getEmployee') return DEMO_EMPLOYEES.find(e=>e.code===d.code)||null;
+  if (action==='submitPermit') {
+    const y=new Date().getFullYear();
+    const p={id:`EP-${y}-${String(permitCounter++).padStart(4,'0')}`,empCode:d.empCode,empName:d.empName,dept:d.dept,leaderCode:d.leaderCode,leaderName:d.leaderName,date:d.date,minutes:parseInt(d.minutes),reason:d.reason,status:'pending',authCode:null,createdAt:new Date().toISOString(),respondedAt:null,exitAt:null,returnAt:null,guardExit:null,guardReturn:null};
+    DEMO_PERMITS.unshift(p); return {success:true,id:p.id};
+  }
+  if (action==='getMyPermits')     return DEMO_PERMITS.filter(p=>p.empCode===d.empCode);
+  if (action==='getLeaderPermits') return DEMO_PERMITS.filter(p=>p.leaderCode===d.leaderCode);
+  if (action==='respondPermit') {
+    const p=DEMO_PERMITS.find(p=>p.id===d.id); if(!p) return {success:false};
+    p.status=d.response; p.respondedAt=new Date().toISOString();
+    if(d.response==='approved') p.authCode=p.id;
+    if(d.response==='corrections') p.corrections=d.corrections;
+    return {success:true};
+  }
+  if (action==='scanQR') {
+    const p=DEMO_PERMITS.find(p=>p.authCode===d.code);
+    if(!p) return {success:false,msg:'Código no encontrado'};
+    if(p.status==='approved'){p.status='progress';p.exitAt=new Date().toISOString();p.guardExit=d.guard;return {success:true,action:'exit',permit:p};}
+    if(p.status==='progress'){p.status='done';p.returnAt=new Date().toISOString();p.guardReturn=d.guard;p.realMinutes=Math.round((new Date(p.returnAt)-new Date(p.exitAt))/60000);return {success:true,action:'return',permit:p};}
+    return {success:false,msg:p.status==='done'?'Permiso ya finalizado':'Estado inválido'};
+  }
+  if (action==='getGuardToday') return DEMO_PERMITS.filter(p=>p.guardExit===d.guard||p.guardReturn===d.guard);
+  if (action==='getAllPermits')  return DEMO_PERMITS;
+  return null;
+}
+
+// ══════════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════════
+function showLoading(v){document.getElementById('loading-overlay').classList.toggle('show',v)}
+function showToast(msg,dur=3000){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur)}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const T={'screen-login':'ElevaPass','screen-emp-home':'Mis permisos','screen-emp-new':'Nueva solicitud','screen-emp-detail':'Detalle','screen-leader-home':'Solicitudes','screen-leader-review':'Revisar solicitud','screen-leader-team':'Mi equipo','screen-guard-home':'Registro de salidas','screen-hr-home':'Administración'};
+  document.getElementById('header-title').textContent=T[id]||'ElevaPass';
+}
+function statusBadge(s){
+  const M={pending:'🟡 Pendiente',approved:'🟢 Aprobado',denied:'🔴 Denegado',progress:'🟠 En progreso',done:'⚫ Finalizado',corrections:'🔵 Correcciones'};
+  const C={pending:'badge-pending',approved:'badge-approved',denied:'badge-denied',progress:'badge-progress',done:'badge-done',corrections:'badge-corrections'};
+  return `<span class="badge ${C[s]||''}">${M[s]||s}</span>`;
+}
+function fmtDate(d){if(!d)return'—';return new Date(d+'T12:00:00').toLocaleDateString('es-GT',{day:'2-digit',month:'short',year:'numeric'})}
+function fmtTime(d){if(!d)return'—';return new Date(d).toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit'})}
+function todayStr(){return new Date().toISOString().split('T')[0]}
+function infoRow(l,v){return`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--text2)">${l}</span><span style="font-size:14px;font-weight:500">${v}</span></div>`}
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+function login(r,e){document.querySelectorAll('.role-card').forEach(c=>c.style.borderColor='');e.currentTarget.style.borderColor='var(--accent)';const P={employee:'EMP001',leader:'LID001',guard:'GRD001',hr:'HR001'};document.getElementById('login-code').value=P[r]}
+
+async function doLogin(){
+  const code=document.getElementById('login-code').value.trim().toUpperCase();
+  if(!code){showToast('Ingresa tu código');return;}
+  const emp=await apiCall('getEmployee',{code});
+  if(!emp){showToast('Código no encontrado');return;}
+  currentUser=emp;
+  currentRole=emp.isHR?'hr':emp.isGuard?'guard':emp.isLeader?'leader':'employee';
+  document.getElementById('header-role').textContent=currentUser.name.split(' ')[0];
+  document.getElementById('bottom-nav').style.display='flex';
+  buildNav();
+  if(currentRole==='employee'){await loadEmpHome();showScreen('screen-emp-home');}
+  else if(currentRole==='leader'){await loadLeaderHome();showScreen('screen-leader-home');}
+  else if(currentRole==='guard'){await loadGuardHome();showScreen('screen-guard-home');}
+  else if(currentRole==='hr'){await loadHRHome();showScreen('screen-hr-home');}
+}
+
+function buildNav(){
+  const M={
+    employee:[{icon:'📋',label:'Permisos',fn:"loadEmpHome();showScreen('screen-emp-home')"},{icon:'➕',label:'Nuevo',fn:"initNewForm();showScreen('screen-emp-new')"},{icon:'⏏️',label:'Salir',fn:'logout()'}],
+    leader:  [{icon:'📨',label:'Solicitudes',fn:"loadLeaderHome();showScreen('screen-leader-home')"},{icon:'👥',label:'Equipo',fn:"loadLeaderTeam();showScreen('screen-leader-team')"},{icon:'⏏️',label:'Salir',fn:'logout()'}],
+    guard:   [{icon:'📷',label:'Escanear',fn:"loadGuardHome();showScreen('screen-guard-home')"},{icon:'⏏️',label:'Salir',fn:'logout()'}],
+    hr:      [{icon:'📊',label:'Panel',fn:"loadHRHome();showScreen('screen-hr-home')"},{icon:'⏏️',label:'Salir',fn:'logout()'}],
+  };
+  document.getElementById('bottom-nav').innerHTML=(M[currentRole]||[]).map(n=>`<button class="nav-btn" onclick="${n.fn}"><span class="nav-icon">${n.icon}</span><span class="nav-label">${n.label}</span></button>`).join('');
+}
+
+function logout(){closeScanner();currentUser=null;currentRole=null;selectedPermit=null;document.getElementById('bottom-nav').style.display='none';document.getElementById('header-role').textContent='';document.getElementById('login-code').value='';showScreen('screen-login')}
+
+// ══════════════════════════════════════════
+// QR SCANNER
+// ══════════════════════════════════════════
+function openScanner(){
+  if(typeof Html5Qrcode==='undefined'){showToast('Librería QR cargando, intenta de nuevo');return;}
+  document.getElementById('qr-scanner-modal').classList.add('open');
+  document.getElementById('qr-reader').innerHTML='<div class="qr-overlay"><div class="qr-frame"><div class="qr-scan-line"></div></div></div>';
+  html5QrCode=new Html5Qrcode('qr-reader');
+  html5QrCode.start({facingMode:'environment'},{fps:10,qrbox:{width:200,height:200},aspectRatio:1.0},
+    (txt)=>{closeScanner();processCode(txt.trim().toUpperCase());},
+    ()=>{}
+  ).catch(err=>{closeScanner();showToast('No se pudo acceder a la cámara. Usa el ingreso manual.');});
+}
+function closeScanner(){
+  document.getElementById('qr-scanner-modal').classList.remove('open');
+  if(html5QrCode){html5QrCode.stop().catch(()=>{}).finally(()=>{html5QrCode.clear();html5QrCode=null;});}
+}
+
+// ══════════════════════════════════════════
+// EMPLOYEE
+// ══════════════════════════════════════════
+async function loadEmpHome(){renderEmpPermits(await apiCall('getMyPermits',{empCode:currentUser.code}),'all')}
+
+async function filterEmpPermits(filter,el){
+  document.querySelectorAll('#screen-emp-home .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+  renderEmpPermits(await apiCall('getMyPermits',{empCode:currentUser.code}),filter);
+}
+
+function renderEmpPermits(permits,filter){
+  if(!Array.isArray(permits)) permits=[];
+  const list=document.getElementById('emp-permits-list'),empty=document.getElementById('emp-permits-empty');
+  const f=filter==='all'?permits:permits.filter(p=>filter==='pending'?['pending','corrections'].includes(p.status):['approved','progress','done'].includes(p.status));
+  if(!f.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  list.innerHTML=f.map(p=>`<div class="permit-item" onclick="viewEmpPermit('${p.id}')">
+    <div class="permit-header">${statusBadge(p.status)}<span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${p.id}</span></div>
+    <div style="font-weight:500">${p.reason}</div>
+    <div class="permit-meta"><span>📅 ${fmtDate(p.date)}</span><span>⏱ ${p.minutes} min</span><span>👔 ${p.leaderName}</span></div>
+    ${p.status==='corrections'?`<div style="font-size:12px;background:var(--warning-light);color:var(--warning);padding:8px 10px;border-radius:6px">📝 ${p.corrections}</div>`:''}
+  </div>`).join('<div style="height:8px"></div>');
+}
+
+async function viewEmpPermit(id){
+  const all=await apiCall('getMyPermits',{empCode:currentUser.code});
+  selectedPermit=(Array.isArray(all)?all:DEMO_PERMITS).find(p=>p.id===id);
+  if(!selectedPermit) return;
+  const c=document.getElementById('emp-detail-content');
+  let html=`<div class="card">
+    <div class="permit-header" style="margin-bottom:14px">${statusBadge(selectedPermit.status)}<span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3)">${selectedPermit.id}</span></div>
+    ${infoRow('Empleado',selectedPermit.empName)}${infoRow('Gerencia',selectedPermit.dept)}${infoRow('Líder',selectedPermit.leaderName)}
+    ${infoRow('Fecha',fmtDate(selectedPermit.date))}${infoRow('Tiempo solicitado',selectedPermit.minutes+' minutos')}${infoRow('Motivo',selectedPermit.reason)}
+    ${infoRow('Solicitado',fmtTime(selectedPermit.createdAt))}${selectedPermit.respondedAt?infoRow('Respondido',fmtTime(selectedPermit.respondedAt)):''}
+  </div>`;
+  if(selectedPermit.status==='corrections')
+    html+=`<div class="card" style="border-color:var(--warning);background:var(--warning-light)"><div class="card-title" style="color:var(--warning)">Instrucciones de corrección</div><p style="font-size:14px">${selectedPermit.corrections}</p></div>
+    <button class="btn btn-primary" onclick="editAndResend('${selectedPermit.id}')">Corregir y reenviar →</button>`;
+  if(['approved','progress','done'].includes(selectedPermit.status)){
+    html+=`<div class="qr-container"><div style="font-size:13px;color:var(--text2)">Código de autorización</div><div class="auth-code">${selectedPermit.authCode}</div><div id="qrcode-detail"></div><p style="font-size:12px;color:var(--text3);text-align:center">Presenta este QR al guardia de seguridad</p></div>`;
+    setTimeout(()=>{const el=document.getElementById('qrcode-detail');if(el&&!el.innerHTML) new QRCode(el,{text:selectedPermit.authCode,width:160,height:160,colorDark:'#1A1917',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});},100);
+    if(selectedPermit.status==='done')
+      html+=`<div class="card"><div class="card-title">Registro de salida</div>${infoRow('Salida',fmtTime(selectedPermit.exitAt))}${infoRow('Regreso',fmtTime(selectedPermit.returnAt))}${infoRow('Tiempo real',(selectedPermit.realMinutes||'—')+' minutos')}</div>`;
+  }
+  c.innerHTML=html;showScreen('screen-emp-detail');
+}
+
+function editAndResend(id){
+  const p=DEMO_PERMITS.find(x=>x.id===id);if(!p)return;
+  initNewForm();document.getElementById('f-minutes').value=p.minutes;document.getElementById('f-reason').value=p.reason;document.getElementById('f-date').value=p.date;
+  p.status='pending';p.authCode=null;p.corrections=null;p.respondedAt=null;
+  showScreen('screen-emp-new');showToast('Solicitud lista para corregir');
+}
+
+function initNewForm(){
+  if(!currentUser)return;
+  document.getElementById('f-emp-code').value=currentUser.code;
+  document.getElementById('f-emp-name').value=currentUser.name;
+  document.getElementById('f-emp-dept').value=currentUser.dept;
+  document.getElementById('f-emp-leader').value=currentUser.leaderName||'';
+  document.getElementById('f-date').value=todayStr();
+  document.getElementById('f-minutes').value='';
+  document.getElementById('f-reason').value='';
+  document.getElementById('f-reason-other').value='';
+  document.getElementById('f-reason-other-wrap').style.display='none';
+}
+
+document.getElementById('f-reason').addEventListener('change',function(){document.getElementById('f-reason-other-wrap').style.display=this.value==='Otro'?'flex':'none'});
+
+async function submitPermit(){
+  const minutes=parseInt(document.getElementById('f-minutes').value);
+  const reason=document.getElementById('f-reason').value;
+  const date=document.getElementById('f-date').value;
+  if(!minutes||!reason||!date){showToast('Completa todos los campos');return;}
+  if(minutes>120){showToast('Máximo 120 minutos permitidos');return;}
+  if(minutes<1){showToast('Ingresa un tiempo válido');return;}
+  const finalReason=reason==='Otro'?(document.getElementById('f-reason-other').value||reason):reason;
+  const result=await apiCall('submitPermit',{empCode:currentUser.code,empName:currentUser.name,dept:currentUser.dept,leaderCode:currentUser.leaderId,leaderName:currentUser.leaderName,date,minutes,reason:finalReason});
+  if(result&&result.success){showToast('✅ Solicitud enviada. Se notificará a tu líder.');await loadEmpHome();showScreen('screen-emp-home');}
+}
+
+// ══════════════════════════════════════════
+// LEADER
+// ══════════════════════════════════════════
+async function loadLeaderHome(){await filterLeaderPermits('pending',document.querySelector('#screen-leader-home .tab'))}
+
+async function filterLeaderPermits(filter,el){
+  if(el){document.querySelectorAll('#screen-leader-home .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
+  const permits=await apiCall('getLeaderPermits',{leaderCode:currentUser.code});
+  const arr=Array.isArray(permits)?permits:[];
+  const pending=arr.filter(p=>p.status==='pending');
+  document.getElementById('leader-pending-count').textContent=pending.length?`${pending.length} pendiente(s)`:'';
+  const filtered=filter==='pending'?arr.filter(p=>p.status==='pending'):arr;
+  const list=document.getElementById('leader-permits-list'),empty=document.getElementById('leader-permits-empty');
+  if(!filtered.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  list.innerHTML=filtered.map(p=>`<div class="permit-item" onclick="reviewPermit('${p.id}')">
+    <div class="permit-header"><div style="font-weight:600">${p.empName}</div>${statusBadge(p.status)}</div>
+    <div style="font-size:13px;color:var(--text2)">${p.reason}</div>
+    <div class="permit-meta"><span>📅 ${fmtDate(p.date)}</span><span>⏱ ${p.minutes} min</span><span>🏢 ${p.dept}</span></div>
+  </div>`).join('<div style="height:8px"></div>');
+}
+
+async function reviewPermit(id){
+  const permits=await apiCall('getLeaderPermits',{leaderCode:currentUser.code});
+  selectedPermit=(Array.isArray(permits)?permits:[]).find(p=>p.id===id)||DEMO_PERMITS.find(p=>p.id===id);
+  if(!selectedPermit)return;
+  const p=selectedPermit,c=document.getElementById('leader-review-content');
+  let html=`<div class="card"><div class="card-title">Solicitud de permiso</div>
+    ${infoRow('Empleado',p.empName)}${infoRow('Gerencia',p.dept)}${infoRow('Fecha',fmtDate(p.date))}
+    ${infoRow('Tiempo solicitado',p.minutes+' minutos')}${infoRow('Motivo',p.reason)}${infoRow('Enviado',fmtTime(p.createdAt))}
+    <div style="padding:8px 0;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;color:var(--text2)">Estado</span>${statusBadge(p.status)}</div>
+  </div>`;
+  if(p.status==='pending')
+    html+=`<button class="btn btn-success" onclick="respondLeader('approved')">✅ Aprobar permiso</button>
+    <button class="btn btn-danger" style="margin-top:8px" onclick="respondLeader('denied')">❌ Denegar permiso</button>
+    <div class="card" style="margin-top:4px"><div class="card-title">Solicitar correcciones</div>
+      <div class="field"><textarea id="corrections-text" placeholder="Describe qué debe corregir el empleado..."></textarea></div>
+      <button class="btn btn-warning" style="margin-top:10px" onclick="respondLeader('corrections')">🔵 Enviar para corrección</button>
+    </div>`;
+  if(['approved','progress','done'].includes(p.status)&&p.authCode){
+    html+=`<div class="qr-container"><div class="auth-code">${p.authCode}</div><div id="qrcode-leader"></div><p style="font-size:12px;color:var(--text3);text-align:center">Copia del QR — guardar o imprimir</p></div>`;
+    setTimeout(()=>{const el=document.getElementById('qrcode-leader');if(el&&!el.innerHTML) new QRCode(el,{text:p.authCode,width:140,height:140,colorDark:'#1A1917',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});},100);
+  }
+  c.innerHTML=html;showScreen('screen-leader-review');
+}
+
+async function respondLeader(response){
+  if(!selectedPermit)return;
+  let corrections='';
+  if(response==='corrections'){corrections=document.getElementById('corrections-text')?.value?.trim();if(!corrections){showToast('Escribe las instrucciones de corrección');return;}}
+  const result=await apiCall('respondPermit',{id:selectedPermit.id,response,corrections});
+  if(result&&result.success){
+    const msgs={approved:'✅ Permiso aprobado. QR generado.',denied:'❌ Permiso denegado.',corrections:'🔵 Correcciones enviadas.'};
+    showToast(msgs[response]);await loadLeaderHome();
+    if(response==='approved') await reviewPermit(selectedPermit.id);
+    else showScreen('screen-leader-home');
+  }
+}
+
+async function loadLeaderTeam(){
+  const permits=await apiCall('getLeaderPermits',{leaderCode:currentUser.code});
+  const arr=Array.isArray(permits)?permits:[];
+  const today=todayStr(),todayP=arr.filter(p=>p.date===today);
+  const empMap={};
+  arr.forEach(p=>{if(!empMap[p.empCode])empMap[p.empCode]={name:p.empName,dept:p.dept,permits:[]};empMap[p.empCode].permits.push(p);});
+  let html=`<div class="card" style="margin-bottom:8px"><div class="card-title">Permisos de hoy — ${fmtDate(today)}</div>`;
+  if(!todayP.length) html+=`<p style="color:var(--text3);font-size:14px">Sin permisos hoy</p>`;
+  else html+=todayP.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)"><div><div style="font-weight:500;font-size:14px">${p.empName}</div><div style="font-size:12px;color:var(--text3)">${p.minutes} min · ${p.reason}</div></div>${statusBadge(p.status)}</div>`).join('');
+  html+='</div><div class="card-title" style="margin:8px 0 4px">Todos mis colaboradores</div>';
+  Object.values(empMap).forEach(e=>{const appr=e.permits.filter(p=>['approved','progress','done'].includes(p.status)).length;html+=`<div class="card" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:500">${e.name}</div><div style="font-size:12px;color:var(--text3)">${e.permits.length} permiso(s)</div></div><div style="font-size:13px;color:var(--text2);margin-top:4px">${e.dept}</div><div style="font-size:12px;color:var(--success);margin-top:6px">✅ ${appr} aprobados de ${e.permits.length}</div></div>`;});
+  document.getElementById('leader-team-content').innerHTML=html;
+}
+
+// ══════════════════════════════════════════
+// GUARD
+// ══════════════════════════════════════════
+async function loadGuardHome(){
+  const r=document.getElementById('guard-scan-result');if(r)r.style.display='none';
+  document.getElementById('guard-manual-code').value='';
+  await renderGuardToday();
+}
+
+async function renderGuardToday(){
+  const records=await apiCall('getGuardToday',{guard:currentUser.code});
+  const arr=Array.isArray(records)?records:[];
+  const list=document.getElementById('guard-today-list'),empty=document.getElementById('guard-today-empty');
+  if(!arr.length){list.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  list.innerHTML=arr.map(p=>`<div class="card" style="margin-bottom:8px">
+    <div class="permit-header"><div style="font-weight:600;font-size:14px">${p.empName}</div>${statusBadge(p.status)}</div>
+    <div class="permit-meta" style="margin-top:6px">
+      <span>🚪 ${fmtTime(p.exitAt)}</span>
+      ${p.returnAt?`<span>🏠 ${fmtTime(p.returnAt)}</span>`:'<span style="color:var(--warning)">⏳ En planta</span>'}
+      ${p.realMinutes?`<span>⏱ ${p.realMinutes} min</span>`:''}
+    </div>
+    <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);margin-top:6px">${p.authCode}</div>
+  </div>`).join('');
+}
+
+async function processCode(code){
+  if(!code){showToast('Código vacío');return;}
+  code=code.trim().toUpperCase();
+  const result=await apiCall('scanQR',{code,guard:currentUser.code});
+  const res=document.getElementById('guard-scan-result');
+  res.style.display='block';
+  if(!result||!result.success){
+    res.innerHTML=`<div class="card" style="border-color:var(--danger);background:var(--danger-light)"><div style="color:var(--danger);font-weight:600;font-size:16px">❌ Código inválido</div><div style="color:var(--text2);font-size:14px;margin-top:6px">${result?.msg||'No se encontró el permiso'}</div></div>`;
+    return;
+  }
+  const p=result.permit,isExit=result.action==='exit';
+  res.innerHTML=`<div class="card" style="border-color:var(--success);background:var(--success-light)">
+    <div style="color:var(--success);font-weight:700;font-size:18px;margin-bottom:12px">${isExit?'🚪 Salida registrada':'🏠 Regreso registrado'}</div>
+    ${infoRow('Empleado',p.empName)}${infoRow('Gerencia',p.dept)}${infoRow('Motivo',p.reason)}${infoRow('Permiso por',p.minutes+' minutos')}
+    ${isExit?infoRow('Hora de salida',fmtTime(p.exitAt)):infoRow('Hora de regreso',fmtTime(p.returnAt))}
+    ${!isExit?infoRow('Tiempo real',p.realMinutes+' minutos'):''}
+  </div>`;
+  document.getElementById('guard-manual-code').value='';
+  await renderGuardToday();
+  showToast(isExit?'✅ Salida registrada':'✅ Regreso registrado');
+  setTimeout(()=>res.scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+// ══════════════════════════════════════════
+// HR
+// ══════════════════════════════════════════
+async function loadHRHome(){
+  const all=await apiCall('getAllPermits',{});
+  const arr=Array.isArray(all)?all:[];
+  const today=todayStr();
+  const stats={total:arr.length,pending:arr.filter(p=>p.status==='pending').length,today:arr.filter(p=>p.date===today).length,done:arr.filter(p=>p.status==='done').length};
+  document.getElementById('hr-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-value">${stats.total}</div><div class="stat-label">Total permisos</div></div>
+    <div class="stat-card"><div class="stat-value">${stats.pending}</div><div class="stat-label">Pendientes</div></div>
+    <div class="stat-card"><div class="stat-value">${stats.today}</div><div class="stat-label">Hoy</div></div>
+    <div class="stat-card"><div class="stat-value">${stats.done}</div><div class="stat-label">Finalizados</div></div>`;
+  hrTab('employees',document.querySelector('#screen-hr-home .tab'));
+}
+
+async function hrTab(tab,el){
+  if(el){document.querySelectorAll('#screen-hr-home .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');}
+  const c=document.getElementById('hr-content');
+  if(tab==='employees'){
+    c.innerHTML=`<div class="section-header" style="margin-bottom:12px"><div style="font-size:14px;font-weight:600">Empleados registrados</div><button class="btn btn-primary btn-sm" onclick="showAddEmployee()">+ Agregar</button></div>
+    <div id="hr-add-form" style="display:none" class="card"><div class="card-title">Nuevo empleado</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="field"><label>Código</label><input type="text" id="new-code" placeholder="EMP004" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="field"><label>Nombre completo</label><input type="text" id="new-name" placeholder="Nombre Apellido"></div>
+        <div class="field"><label>Gerencia</label><input type="text" id="new-dept" placeholder="Operaciones"></div>
+        <div class="field"><label>Código del líder</label><input type="text" id="new-leader" placeholder="LID001" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="field"><label>Email</label><input type="email" id="new-email" placeholder="empleado@empresa.com"></div>
+        <button class="btn btn-primary" onclick="addEmployee()">Guardar empleado</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto"><table class="data-table">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Gerencia</th><th>Líder</th></tr></thead>
+      <tbody>${DEMO_EMPLOYEES.filter(e=>!e.isGuard&&!e.isHR).map(e=>`<tr><td style="font-family:'DM Mono',monospace;font-size:12px">${e.code}</td><td>${e.name}</td><td style="font-size:13px">${e.dept}</td><td style="font-size:13px">${e.leaderName||'—'}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  } else {
+    const all=await apiCall('getAllPermits',{});
+    const arr=Array.isArray(all)?all:[];
+    const totalMins=arr.reduce((a,p)=>a+(p.minutes||0),0),realMins=arr.reduce((a,p)=>a+(p.realMinutes||0),0);
+    c.innerHTML=`<div class="card" style="margin-bottom:12px"><div class="card-title">Resumen de tiempos</div>
+      ${infoRow('Tiempo solicitado total',Math.floor(totalMins/60)+'h '+(totalMins%60)+'min')}
+      ${infoRow('Tiempo real registrado',Math.floor(realMins/60)+'h '+(realMins%60)+'min')}
+      ${infoRow('Diferencia',(realMins-totalMins>=0?'+':'')+(realMins-totalMins)+' min')}
+    </div>
+    <div style="overflow-x:auto"><table class="data-table">
+      <thead><tr><th>ID</th><th>Empleado</th><th>Fecha</th><th>Solicit.</th><th>Real</th><th>Estado</th></tr></thead>
+      <tbody>${arr.map(p=>`<tr><td style="font-family:'DM Mono',monospace;font-size:11px">${p.id}</td><td style="font-size:13px">${p.empName.split(' ')[0]}</td><td style="font-size:12px">${fmtDate(p.date)}</td><td>${p.minutes}m</td><td>${p.realMinutes||'—'}</td><td>${statusBadge(p.status)}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+}
+
+function showAddEmployee(){const f=document.getElementById('hr-add-form');if(f)f.style.display=f.style.display==='none'?'block':'none';}
+
+function addEmployee(){
+  const code=document.getElementById('new-code')?.value?.trim()?.toUpperCase();
+  const name=document.getElementById('new-name')?.value?.trim();
+  const dept=document.getElementById('new-dept')?.value?.trim();
+  const leaderCode=document.getElementById('new-leader')?.value?.trim()?.toUpperCase();
+  const email=document.getElementById('new-email')?.value?.trim();
+  if(!code||!name||!dept){showToast('Completa los campos requeridos');return;}
+  const leader=DEMO_EMPLOYEES.find(e=>e.code===leaderCode);
+  DEMO_EMPLOYEES.push({code,name,dept,leaderId:leaderCode,leaderName:leader?.name||leaderCode,email});
+  showToast('✅ Empleado agregado');hrTab('employees',null);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{const d=document.getElementById('f-date');if(d)d.value=todayStr();});
+</script>
+</body>
+</html>
